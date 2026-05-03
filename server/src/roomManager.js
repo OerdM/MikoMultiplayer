@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 let room;
 
@@ -75,4 +75,25 @@ const deleteRoom = () => {
     }
 };
 
-module.exports = { createRoom, addUser, removeUser, getRoom, deleteRoom };
+const updateUser = (socketId, username, persona) => {
+    try {
+        if (!room) {
+            throw new Error('No room exists. Please create a room first.');
+        }
+        if (!room.users.has(socketId)) {
+            throw new Error('User not found in the room.');
+        }
+        const currentUser = room.users.get(socketId);
+        const updatedUser = {
+            username: username,
+            persona: persona,
+            queueId: currentUser.queueId
+        };
+        room.users.set(socketId, updatedUser);
+        return updatedUser;
+    } catch (error) {
+        console.error('Error updating user:', error);
+    }
+};
+
+export { createRoom, addUser, removeUser, getRoom, deleteRoom, updateUser };

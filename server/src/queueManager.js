@@ -1,5 +1,4 @@
-const { getRoom } = require('./roomManager');
-
+import { getRoom } from './roomManager.js';
 
 const queue = [];
 
@@ -95,4 +94,8 @@ function reorderUser(callerSocketId, targetSocketId, newIndex) {
     }
 }
 
-module.exports = { initQueue, getCurrentUser, nextUser, addToQueue, removeFromQueue, reorderUser };
+function getQueue() {
+    return queue;
+}
+
+export { initQueue, getCurrentUser, nextUser, addToQueue, removeFromQueue, reorderUser, getQueue };
