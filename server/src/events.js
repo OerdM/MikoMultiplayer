@@ -1,6 +1,9 @@
 import { createRoom, updateUser, getRoom, addUser, removeUser } from './roomManager.js';
 import { addToQueue, getCurrentUser, initQueue, nextUser, removeFromQueue, reorderUser, getQueue } from './queueManager.js';
 
+// The server only supports one room at a time
+// this is a design choice and multiple rooms will not be added in the future
+
 export default (io) => {
     io.on('connection', (socket) => {
         console.log('User connected:', socket.id);
@@ -10,6 +13,7 @@ export default (io) => {
                 createRoom(socket.id);
                 updateUser(socket.id, username, persona);
                 initQueue();
+
 
                 const room = getRoom();
                 socket.join(room.roomId);
@@ -24,7 +28,7 @@ export default (io) => {
 
         socket.on('joinRoom', ({ roomId, username, persona }) => {
             try {
-                const room = getRoom(); // Check if room exists
+                const room = getRoom();
                 if (!room) {
                     throw new Error('No room exists with the provided ID.');
                 }
@@ -54,7 +58,7 @@ export default (io) => {
 
         socket.on('sendMessage', ({ inputContext }) => {
             try {
-                const room = getRoom(); // Ensure room exists before sending message
+                const room = getRoom();
                 if (!room) {
                     throw new Error('No room exists. Please create a room first.');
                 }
@@ -87,7 +91,7 @@ export default (io) => {
 
         socket.on('hostSendMessage', ({ inputContext }) => {
             try {
-                const room = getRoom(); // Ensure room exists before sending message
+                const room = getRoom();
             if (!room) {
                 console.error('No room exists. Please create a room first.');
                 socket.emit('error', { message: 'No room exists. Please create a room first.' });
@@ -111,6 +115,9 @@ export default (io) => {
                 combinedMessages += `${message.username}: ${message.inputContext}\n`;
             });
 
+
+            // Host aggregates all user messages into a single prompt
+            // to send to the LLM, then resets the message buffer
             socket.emit('llmReady', { 
                 combinedMessages, 
                 users: [...room.users.values()] 
@@ -128,7 +135,7 @@ export default (io) => {
 
         socket.on('reorderQueue', ({ targetSocketId, newIndex }) => {
             try {
-                const room = getRoom(); // Ensure room exists before reordering queue
+                const room = getRoom();
                 if (!room) {
                     throw new Error('No room exists. Please create a room first.');
                 }
@@ -140,7 +147,7 @@ export default (io) => {
                 reorderUser(socket.id, targetSocketId, newIndex);
                 
                 io.to(room.roomId).emit('queueReordered', {
-                    queue: getQueue() // Send the updated queue to all clients
+                    queue: getQueue()
                 });
 
             } catch (error) {
