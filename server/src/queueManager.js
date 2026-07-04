@@ -40,7 +40,7 @@ function nextUser() {
         queue.push(queue.shift());
         const cur = getCurrentUser();
         console.log('[server] nextUser() çağrıldı → yeni sıra:', cur.socketId, '| kuyruk:', JSON.stringify(queue));
-        console.trace('[server] nextUser çağrı kaynağı'); // ← KİM çağırdı
+        console.trace('[server] nextUser çağrı kaynağı');
         return cur;
     } catch (error) {
         throw new Error('Error occurred while rotating to the next user.');
