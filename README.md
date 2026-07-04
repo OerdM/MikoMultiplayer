@@ -140,4 +140,6 @@ To verify: `npm pack socket.io-client@4.8.3`, extract, and run `sha256sum dist/s
 
 Released under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0).
 
-**A special thanks to all my friends that gave the idea and motivated for this project, love you guys <3**
+
+
+**A special thanks to my buddies that gave the idea and motivated me on this project, love you guys <3**
