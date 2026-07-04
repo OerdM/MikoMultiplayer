@@ -71,7 +71,7 @@ The relay starts a Cloudflare tunnel automatically. When you see `[tunnel] URL c
 1. Start your relay (see above) and open SillyTavern.
 2. Select your character, **Start a fresh chat** (Create New Chat) or use the chat you want to share.
 3. Open the **Extensions** panel → **SillyTavern Multiplayer (STMP)**.
-4. Click **Open Room**. A room code appears — click **Copy**.
+4. Click **Open Room**. A room code appears, click **Copy**.
 5. Send that code to your participants.
 
 ### Participant
@@ -139,3 +139,5 @@ To verify: `npm pack socket.io-client@4.8.3`, extract, and run `sha256sum dist/s
 ## License
 
 Released under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0).
+
+**A special thanks to all my friends that gave the idea and motivated for this project, love you guys <3**
