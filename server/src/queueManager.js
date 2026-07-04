@@ -1,13 +1,15 @@
+//queueManager.js
+
 import { getRoom } from './roomManager.js';
 
 const queue = [];
 
 // Initialize the queue based on the current room's users
 function initQueue() {
-    const hostId = room.hostId;
     const room = getRoom();
-
-    queue = [...room.users.keys()];
+    const hostId = room.hostId;
+    queue.length = 0;
+    queue.push(...room.users.keys());
     queue.splice(queue.indexOf(hostId), 1);
     queue.sort((a, b) => room.users.get(a).queueId - room.users.get(b).queueId);
     queue.push(hostId);
@@ -31,14 +33,15 @@ function getCurrentUser() {
 }
 
 function nextUser() {
-
     if (queue.length === 0) {
         throw new Error('Queue is empty. No users to rotate.');
     }
-
     try {
         queue.push(queue.shift());
-        return getCurrentUser();
+        const cur = getCurrentUser();
+        console.log('[server] nextUser() çağrıldı → yeni sıra:', cur.socketId, '| kuyruk:', JSON.stringify(queue));
+        console.trace('[server] nextUser çağrı kaynağı'); // ← KİM çağırdı
+        return cur;
     } catch (error) {
         throw new Error('Error occurred while rotating to the next user.');
     }

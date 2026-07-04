@@ -1,0 +1,36 @@
+<div class="stmp-settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Miko Multiplayer (STMP)</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+
+            <div id="stmp_idle" class="stmp-block flex-container flexFlowColumn">
+                <input id="stmp_host_btn" class="menu_button" type="submit" value="Open Room" />
+                <input id="stmp_token_input" class="text_pole" type="text" placeholder="Paste room code" />
+                <input id="stmp_join_btn" class="menu_button" type="submit" value="Join Room" />
+            </div>
+
+            <div id="stmp_host" class="stmp-block flex-container flexFlowColumn" style="display:none;">
+                <label>Room Code (share this):</label>
+                <input id="stmp_token_display" class="text_pole" type="text" readonly />
+                <input id="stmp_copy_btn" class="menu_button" type="submit" value="Copy" />
+                <input id="stmp_close_btn" class="menu_button" type="submit" value="Close Room" />
+            </div>
+
+            <div id="stmp_participant" class="stmp-block flex-container flexFlowColumn" style="display:none;">
+                <span>Connected to room.</span>
+                <input id="stmp_leave_btn" class="menu_button" type="submit" value="Leave Room" />
+            </div>
+
+            <div id="stmp_members_wrap" class="stmp-block" style="display:none;">
+                <hr class="sysHR" />
+                <label>In this room:</label>
+                <div id="stmp_members" class="stmp-members flex-container"></div>
+            </div>
+
+            <hr class="sysHR" />
+        </div>
+    </div>
+</div>

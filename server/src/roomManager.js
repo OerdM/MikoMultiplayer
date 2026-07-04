@@ -1,4 +1,9 @@
+// roomManager.js
+
 import { v4 as uuidv4 } from 'uuid';
+
+// There could be some old code remnants that suggest turn checks
+// but current implementation is flexible and does not enforce strict turn-taking for users
 
 let room;
 

@@ -1,0 +1,11 @@
+{
+    "display_name": "SillyTavern Multiplayer",
+    "loading_order": 10,
+    "js": "index.js",
+    "css": "style.css",
+    "author": "OerdM",
+    "version": "0.1.0-beta",
+    "homePage": "https://github.com/OerdM/MikoMultiplayer",
+    "auto_update": false,
+    "generate_interceptor": "stmpInterceptor"
+}

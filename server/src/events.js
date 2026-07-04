@@ -1,176 +1,180 @@
+// events.js
 import { createRoom, updateUser, getRoom, addUser, removeUser } from './roomManager.js';
-import { addToQueue, getCurrentUser, initQueue, nextUser, removeFromQueue, reorderUser, getQueue } from './queueManager.js';
+import { removeFromQueue, reorderUser, getQueue } from './queueManager.js';
+
 
 // The server only supports one room at a time
-// this is a design choice and multiple rooms will not be added in the future
 
 export default (io) => {
     io.on('connection', (socket) => {
-        console.log('User connected:', socket.id);
+        console.log('[server] User connected:', socket.id);
 
         socket.on('createRoom', ({ username, persona }) => {
             try {
+                const existing = getRoom();
+                if (existing) {
+                    if (existing.hostId === socket.id) {
+                        console.warn('[server] createRoom tekrar geldi, mevcut oda döndürülüyor.');
+                        socket.emit('roomCreated', { roomId: existing.roomId });
+                        return;
+                    }
+                    throw new Error('A room already exists (single-room server).');
+                }
+
                 createRoom(socket.id);
                 updateUser(socket.id, username, persona);
-                initQueue();
-
 
                 const room = getRoom();
                 socket.join(room.roomId);
-
                 socket.emit('roomCreated', { roomId: room.roomId });
-            
+                console.log('[server] Room created by host:', socket.id, 'room:', room.roomId);
             } catch (error) {
-                console.error('Error creating room:', error);
-                socket.emit('error', { message: 'Error creating room.' });
+                console.error('[server] Error creating room:', error);
+                socket.emit('error', { message: `createRoom: ${error.message}` });
             }
         });
 
         socket.on('joinRoom', ({ roomId, username, persona }) => {
             try {
                 const room = getRoom();
-                if (!room) {
-                    throw new Error('No room exists with the provided ID.');
-                }
-                if(room.roomId !== roomId) {
-                    throw new Error('Room ID does not match the existing room.');
-                }
-                
+                if (!room) throw new Error('No room exists with the provided ID.');
+                if (room.roomId !== roomId) throw new Error('Room ID does not match the existing room.');
+
                 const newUser = addUser(socket.id, username, persona);
-                addToQueue(socket.id);
                 socket.join(room.roomId);
-                socket.emit('joinedRoom', {
-                    roomId: room.roomId,
-                    user: newUser
-                });
+
+                socket.emit('joinedRoom', { roomId: room.roomId, user: newUser });
 
                 io.to(roomId).emit('userJoined', {
                     socketId: socket.id,
                     username: newUser.username,
-                    persona: newUser.persona
-                })
+                    persona: newUser.persona,
+                });
 
+                if (room.hostId && room.hostId !== socket.id) {
+                    io.to(room.hostId).emit('requestSnapshot', { targetSocketId: socket.id });
+                    console.log('[server] requestSnapshot → host, for new joiner:', socket.id);
+                }
             } catch (error) {
-                console.error('Error joining room:', error);
+                console.error('[server] Error joining room:', error);
                 socket.emit('error', { message: 'Error joining room.' });
-            } 
+            }
         });
 
-        socket.on('sendMessage', ({ inputContext }) => {
+        socket.on('provideSnapshot', ({ targetSocketId, messages }) => {
             try {
                 const room = getRoom();
-                if (!room) {
-                    throw new Error('No room exists. Please create a room first.');
-                }
-                if(getCurrentUser().socketId !== socket.id) {
-                    throw new Error('You are not the current user.');
-                }
+                if (!room) throw new Error('No room exists.');
+                if (room.hostId !== socket.id) throw new Error('Only the host can provide a snapshot.');
 
-                const { username } = room.users.get(socket.id);
-                room.messages.push({
-                    socketId: socket.id,
-                    username,
-                    inputContext
-                });
-                nextUser();
+                io.to(targetSocketId).emit('snapshot', { messages });
+                console.log(`[server] snapshot relayed → ${targetSocketId} (${messages?.length ?? 0} msgs)`);
+            } catch (error) {
+                console.error('[server] Error providing snapshot:', error);
+                socket.emit('error', { message: 'Error providing snapshot.' });
+            }
+        });
+
+        socket.on('sendMessage', ({ inputContext, username }) => {
+            try {
+                const room = getRoom();
+                if (!room) throw new Error('No room exists. Please create a room first.');
+                if (socket.id === room.hostId) throw new Error('Host must use hostSendMessage event to send messages.');
+
+                const user = room.users.get(socket.id);
+                if (!user) throw new Error('User not in room.');
+                const name = username ?? user.username;
+
+                room.messages.push({ socketId: socket.id, username: name, inputContext });
 
                 io.to(room.roomId).emit('messageSent', {
                     socketId: socket.id,
-                    username,
-                    inputContext
+                    username: name,
+                    inputContext,
                 });
-
-                const next = getCurrentUser();
-                io.to(next.socketId).emit('yourTurn');
-
             } catch (error) {
-                console.error('Error sending message:', error);
-                socket.emit('error', { message: 'Error sending message.' });
-            }
-        })
-
-        socket.on('hostSendMessage', ({ inputContext }) => {
-            try {
-                const room = getRoom();
-            if (!room) {
-                console.error('No room exists. Please create a room first.');
-                socket.emit('error', { message: 'No room exists. Please create a room first.' });
-                return;
-            }
-
-            if(room.hostId !== socket.id) {
-                console.error('Only the host can send messages using this event.');
-                socket.emit('error', { message: 'Only the host can send messages using this event.' });
-                return;
-            }
-
-            room.messages.push({
-                socketId: socket.id,
-                username: room.users.get(socket.id).username,
-                inputContext
-            });
-
-            let combinedMessages = '';
-            room.messages.forEach(message => {
-                combinedMessages += `${message.username}: ${message.inputContext}\n`;
-            });
-
-
-            // Host aggregates all user messages into a single prompt
-            // to send to the LLM, then resets the message buffer
-            socket.emit('llmReady', { 
-                combinedMessages, 
-                users: [...room.users.values()] 
-            });
-
-            room.messages = [];
-
-            nextUser();
-
-            } catch (error) {
-                console.error('Error sending host message:', error);
-                socket.emit('error', { message: 'Error sending host message.' });
+                console.error('[server] Error sending message:', error);
+                socket.emit('error', { message: `sendMessage: ${error.message}` });
             }
         });
 
-        socket.on('reorderQueue', ({ targetSocketId, newIndex }) => {
+        socket.on('hostSendMessage', ({ inputContext, username }) => {
             try {
                 const room = getRoom();
                 if (!room) {
-                    throw new Error('No room exists. Please create a room first.');
+                    socket.emit('error', { message: 'No room exists.' });
+                    return;
+                }
+                if (room.hostId !== socket.id) {
+                    socket.emit('error', { message: 'Only the host can send messages using this event.' });
+                    return;
                 }
 
-                if(room.hostId !== socket.id) {
-                    throw new Error('Only the host can reorder the queue.');
-                }
+                const hostName = username ?? room.users.get(socket.id).username;
+                room.messages.push({ socketId: socket.id, username: hostName, inputContext });
 
-                reorderUser(socket.id, targetSocketId, newIndex);
-                
-                io.to(room.roomId).emit('queueReordered', {
-                    queue: getQueue()
+                io.to(room.roomId).emit('messageSent', {
+                    socketId: socket.id,
+                    username: hostName,
+                    inputContext,
+                });
+                console.log(`[server] host input broadcast: ${hostName}`);
+
+                let combinedMessages = '';
+                room.messages.forEach(m => { combinedMessages += `${m.username}: ${m.inputContext}\n`; });
+
+                socket.emit('llmReady', {
+                    combinedMessages,
+                    users: [...room.users.values()],
                 });
 
+                room.messages = [];
             } catch (error) {
-                console.error('Error reordering queue:', error);
-                socket.emit('error', { message: 'Error reordering queue.' });
+                console.error('[server] Error sending host message:', error);
+                socket.emit('error', { message: `hostSendMessage: ${error.message}` });
+            }
+        });
+
+        socket.on('llmResponse', ({ inputContext, name }) => {
+            try {
+                const room = getRoom();
+                if (!room) throw new Error('No room exists.');
+                if (room.hostId !== socket.id) throw new Error('Only the host can broadcast LLM responses.');
+
+                io.to(room.roomId).emit('llmResponse', {
+                    name: name ?? 'Assistant',
+                    inputContext,
+                });
+                console.log(`[server] llmResponse broadcast: ${name ?? 'Assistant'}`);
+            } catch (error) {
+                console.error('[server] Error broadcasting llmResponse:', error);
+                socket.emit('error', { message: `llmResponse: ${error.message}` });
             }
         });
 
         socket.on('disconnect', () => {
             try {
                 const room = getRoom();
-                removeFromQueue(socket.id);
+                if (!room) return;
+
+                const isHostLeaving = room.hostId === socket.id;
+
                 removeUser(socket.id);
+
+                if (isHostLeaving) {
+                    io.to(room.roomId).emit('roomClosed', { message: 'Host has left the room.' });
+                    console.log('[server] Host left — room closed.');
+                    return;
+                }
 
                 const updatedRoom = getRoom();
                 if (updatedRoom) {
                     io.to(updatedRoom.roomId).emit('userLeft', { socketId: socket.id });
                 }
-
+                console.log('[server] User left:', socket.id);
             } catch (error) {
-                console.error('Error handling disconnect:', error);
+                console.error('[server] Error handling disconnect:', error);
             }
         });
     });
-}
-
+};
